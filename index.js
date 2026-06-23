@@ -1,15 +1,37 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
+
+// Try common Chromium install locations and use whichever actually exists
+function findChromiumPath() {
+  const candidates = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/snap/bin/chromium'
+  ];
+  for (const path of candidates) {
+    if (fs.existsSync(path)) {
+      console.log(`Found Chromium at: ${path}`);
+      return path;
+    }
+  }
+  console.log('WARNING: Could not find Chromium at any known path. Checked:', candidates);
+  return null;
+}
+
+const chromiumPath = findChromiumPath();
 
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    executablePath: '/usr/bin/chromium',
+    ...(chromiumPath ? { executablePath: chromiumPath } : {}),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -39,7 +61,7 @@ client.initialize();
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.send('WhatsApp bridge is running. Check /qr to scan or /status to check connection.');
+  res.send(`WhatsApp bridge is running. Chromium path: ${chromiumPath || 'NOT FOUND'}. Check /qr to scan or /status to check connection.`);
 });
 
 // View the QR code as text (since Render logs can be hard to read)
