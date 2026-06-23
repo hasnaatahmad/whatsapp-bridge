@@ -42,10 +42,35 @@ client.on('ready', () => {
   isClientReady = true;
 });
 
-client.on('disconnected', () => {
-  console.log('WhatsApp client disconnected.');
+client.on('auth_failure', (msg) => {
+  console.log('AUTH FAILURE:', msg);
+});
+
+client.on('disconnected', (reason) => {
+  console.log('WhatsApp client disconnected. Reason:', reason);
   isClientReady = false;
 });
+
+client.on('loading_screen', (percent, message) => {
+  console.log(`Loading: ${percent}% - ${message}`);
+});
+
+client.on('change_state', (state) => {
+  console.log('State changed to:', state);
+});
+
+const fs = require('fs');
+console.log('Starting bridge. Checking auth folder...');
+try {
+  if (!fs.existsSync('.wwebjs_auth')) {
+    fs.mkdirSync('.wwebjs_auth');
+    console.log('Created .wwebjs_auth folder');
+  } else {
+    console.log('.wwebjs_auth folder already exists');
+  }
+} catch (e) {
+  console.log('ERROR checking/creating auth folder:', e.message);
+}
 
 client.initialize();
 
