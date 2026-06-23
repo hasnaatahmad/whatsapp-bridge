@@ -1,5 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const qrcodeImage = require('qrcode');
 const express = require('express');
 
 const app = express();
@@ -45,12 +46,35 @@ app.get('/', (req, res) => {
   res.send(`WhatsApp bridge is running. Chromium path: ${chromiumPath}. Check /qr to scan or /status to check connection.`);
 });
 
-// View the QR code as text (since Render logs can be hard to read)
-app.get('/qr', (req, res) => {
+// View the QR code as an actual scannable image
+app.get('/qr', async (req, res) => {
   if (lastQr) {
-    res.send(`<pre>Scan this with WhatsApp (Linked Devices):\n\n${lastQr}</pre><p>If this doesn't render as a scannable code, check the Render logs instead, the QR renders better there.</p>`);
+    try {
+      const qrImageDataUrl = await qrcodeImage.toDataURL(lastQr, { width: 400, margin: 2 });
+      res.send(`
+        <html>
+          <body style="background:#111; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:sans-serif; color:white;">
+            <h2>Scan this with WhatsApp (Linked Devices)</h2>
+            <img src="${qrImageDataUrl}" style="background:white; padding:16px; border-radius:8px;" />
+            <p>This page refreshes every 20 seconds in case the code expires.</p>
+            <script>setTimeout(() => location.reload(), 20000)</script>
+          </body>
+        </html>
+      `);
+    } catch (e) {
+      res.status(500).send('Error generating QR image: ' + e.message);
+    }
   } else {
-    res.send('No QR code yet, or already connected. Check /status.');
+    res.send(`
+      <html>
+        <body style="background:#111; color:white; font-family:sans-serif; text-align:center; padding-top:100px;">
+          <h2>No QR code yet, or already connected.</h2>
+          <p>Check <a href="/status" style="color:#4af">/status</a> to see connection state.</p>
+          <p>This page refreshes every 5 seconds.</p>
+          <script>setTimeout(() => location.reload(), 5000)</script>
+        </body>
+      </html>
+    `);
   }
 });
 
