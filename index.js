@@ -35,8 +35,16 @@ client.on('qr', (qr) => {
   lastQr = qr;
 });
 
+let isClientReady = false;
+
 client.on('ready', () => {
   console.log('WhatsApp bridge is ready!');
+  isClientReady = true;
+});
+
+client.on('disconnected', () => {
+  console.log('WhatsApp client disconnected.');
+  isClientReady = false;
 });
 
 client.initialize();
@@ -79,17 +87,16 @@ app.get('/qr', async (req, res) => {
 });
 
 app.get('/status', async (req, res) => {
-  try {
-    const state = await client.getState();
-    res.json({ state });
-  } catch (e) {
-    res.json({ state: 'not ready', error: e.message });
-  }
+  res.json({ isClientReady });
 });
 
 // Quick browser-triggerable test (visit this URL directly to send a test message)
 app.get('/test-send', async (req, res) => {
   try {
+    if (!isClientReady) {
+      return res.status(503).json({ error: 'WhatsApp client is not ready yet. Wait a moment and try again, or check /status.' });
+    }
+
     const groupName = req.query.group;
     if (!groupName) {
       return res.send('Add ?group=YourGroupName to the URL, e.g. /test-send?group=Accounting Group');
@@ -113,6 +120,10 @@ app.get('/test-send', async (req, res) => {
 // This is the endpoint n8n will call
 app.post('/send', async (req, res) => {
   try {
+    if (!isClientReady) {
+      return res.status(503).json({ error: 'WhatsApp client is not ready yet.' });
+    }
+
     const { groupName, message } = req.body;
 
     if (!groupName || !message) {
