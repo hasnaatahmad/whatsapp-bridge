@@ -87,6 +87,29 @@ app.get('/status', async (req, res) => {
   }
 });
 
+// Quick browser-triggerable test (visit this URL directly to send a test message)
+app.get('/test-send', async (req, res) => {
+  try {
+    const groupName = req.query.group;
+    if (!groupName) {
+      return res.send('Add ?group=YourGroupName to the URL, e.g. /test-send?group=Accounting Group');
+    }
+
+    const chats = await client.getChats();
+    const group = chats.find(chat => chat.name === groupName);
+
+    if (!group) {
+      const allGroups = chats.filter(c => c.isGroup).map(c => c.name);
+      return res.status(404).json({ error: 'Group not found', availableGroups: allGroups });
+    }
+
+    await group.sendMessage('✅ Test message from the automation bridge. If you see this, the connection works!');
+    res.json({ success: true, message: 'Test message sent!' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // This is the endpoint n8n will call
 app.post('/send', async (req, res) => {
   try {
